@@ -44,6 +44,7 @@ def sintetizar(texto: str) -> bytes:
         model=MODELO_TTS,
         contents=f"{ESTILO}\n\n{texto}",
         config=types.GenerateContentConfig(
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             response_modalities=["AUDIO"],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(

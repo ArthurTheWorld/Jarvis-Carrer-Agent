@@ -5,10 +5,10 @@ Cadeia de modelos: Gemini (principal) → Gemini reserva.
 import functools
 import logging
 
-from google.genai import errors, types
+from google.genai import types
 
 import config
-from llm import CODIGOS_TRANSITORIOS, carregar_prompt, cliente
+from llm import carregar_prompt, cliente, erro_transitorio
 from tools import conteudo, registro
 
 log = logging.getLogger("jarvis.agente")
@@ -36,6 +36,7 @@ class ModelosIndisponiveis(Exception):
 def _rastrear(funcao):
     @functools.wraps(funcao)  # preserva nome, docstring e assinatura que o Gemini lê
     def envoltorio(*args, **kwargs):
+        log.info("Ferramenta chamada: %s %s", funcao.__name__, kwargs)
         resultado = funcao(*args, **kwargs)
         falhou = isinstance(resultado, dict) and resultado.get("ok") is False
         if funcao.__name__ in COM_EFEITO and not falhou:
@@ -95,12 +96,12 @@ class Jarvis:
             _execucoes.clear()
             try:
                 resp = self.chat.send_message(partes)
-            except errors.APIError as e:
-                if e.code not in CODIGOS_TRANSITORIOS:
+            except Exception as e:
+                if not erro_transitorio(e):
                     raise
                 if _execucoes:
                     self._falhou_depois_de_agir(e)
-                log.warning("Modelo %s indisponível (%s).", modelo, e.code)
+                log.warning("Modelo %s indisponível (%s).", modelo, getattr(e, "code", type(e).__name__))
                 continue
             self._notas = []
             if self._modelo_atual != config.MODELO:

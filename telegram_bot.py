@@ -8,7 +8,9 @@ TELEGRAM_ALLOWED_IDS no .env e reinicie.
 """
 import logging
 import os
+import threading
 import time
+from contextlib import contextmanager
 
 import requests
 
@@ -18,6 +20,7 @@ import voz
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("google_genai.models").setLevel(logging.WARNING)  # silencia o "AFC is enabled" repetitivo
 log = logging.getLogger("jarvis.telegram")
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
@@ -76,6 +79,31 @@ def enviar_voz(chat_id: int, texto: str) -> None:
         enviar(chat_id, texto)  # texto longo demais para legenda: vai como mensagem separada
 
 
+@contextmanager
+def digitando(chat_id: int):
+    """Mantém o "digitando..." visível enquanto o Jarvis trabalha.
+
+    O Telegram apaga o indicador após ~5s; sob alta demanda, uma resposta pode levar
+    bem mais que isso, e sem o indicador parece que o bot travou.
+    """
+    parar = threading.Event()
+
+    def manter():
+        while not parar.is_set():
+            try:
+                _api("sendChatAction", chat_id=chat_id, action="typing")
+            except Exception:
+                pass
+            parar.wait(4)
+
+    t = threading.Thread(target=manter, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        parar.set()
+
+
 def baixar_arquivo(file_id: str) -> bytes:
     caminho = _api("getFile", file_id=file_id)["file_path"]
     r = requests.get(f"{ARQUIVOS}/{caminho}", timeout=60)
@@ -108,16 +136,15 @@ def processar(msg: dict) -> None:
         responder(f"Respostas em áudio {'ativadas' if _opcoes['voz'] else 'desativadas'}.")
         return
 
-    _api("sendChatAction", chat_id=chat_id, action="typing")
-
-    if texto:
-        nucleo.tratar(responder, texto=texto)
-    elif "voice" in msg or "audio" in msg:
-        midia = msg.get("voice") or msg.get("audio")
-        audio = baixar_arquivo(midia["file_id"])
-        nucleo.tratar(responder, audio=audio, mime=midia.get("mime_type", "audio/ogg").split(";")[0])
-    else:
-        responder("Por enquanto eu entendo mensagens de texto e áudio.")
+    with digitando(chat_id):
+        if texto:
+            nucleo.tratar(responder, texto=texto)
+        elif "voice" in msg or "audio" in msg:
+            midia = msg.get("voice") or msg.get("audio")
+            audio = baixar_arquivo(midia["file_id"])
+            nucleo.tratar(responder, audio=audio, mime=midia.get("mime_type", "audio/ogg").split(";")[0])
+        else:
+            responder("Por enquanto eu entendo mensagens de texto e áudio.")
 
 
 def main() -> None:

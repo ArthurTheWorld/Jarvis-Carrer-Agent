@@ -9,7 +9,7 @@ from typing import Callable
 from google.genai import errors
 
 from agente import AcoesSemResposta, Jarvis, ModelosIndisponiveis
-from llm import CODIGOS_TRANSITORIOS
+from llm import erro_transitorio
 from tools import conteudo, linkedin
 
 Enviar = Callable[..., None]  # enviar(texto, falar=False)
@@ -39,7 +39,7 @@ def tratar(enviar: Enviar, texto: str | None = None,
             enviar("O Gemini está sobrecarregado agora. Tentei várias vezes, inclusive com o modelo reserva, "
                    "e nada foi alterado. Pode reenviar em alguns minutos.")
         except errors.APIError as e:
-            if e.code in CODIGOS_TRANSITORIOS:
+            if erro_transitorio(e):
                 enviar(f"O Gemini está instável agora (erro {e.code}). Nada foi alterado. Pode reenviar em alguns minutos.")
             else:
                 enviar(f"Erro do Gemini ({e.code}): {e.message}")
