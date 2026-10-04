@@ -1,0 +1,21 @@
+# Segredos e credenciais
+.env
+credenciais/
+*.json.key
+
+
+# Ambiente e cache
+.venv/
+__pycache__/
+*.pyc
+
+# Dados pessoais gerados em uso
+posts_aprovados.jsonl
+posts_publicados.jsonl
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+tests/

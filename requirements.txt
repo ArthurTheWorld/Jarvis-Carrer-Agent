@@ -1,0 +1,7 @@
+google-genai
+gspread
+python-dotenv
+pydantic
+tzdata
+requests
+av
