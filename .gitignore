@@ -19,3 +19,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 tests/
+
+# Logs
+logs/
