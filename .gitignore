@@ -20,4 +20,4 @@ desktop.ini
 .vscode/
 
 # Logs
-logs/
+logs/*.patch
